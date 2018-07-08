@@ -435,5 +435,26 @@ pub fn Reflect(v:&v3f,n:&v3f)->v3f{
     VecSub3D(v,&t)
 }
 
+pub fn Refract(v:&v3f,n:&v3f,ni_over_nt:f32,refracted:& mut v3f)-> bool{
 
+    let unit_vector=VecNorm3D(v);
+    let dt=VecDot3D(&unit_vector,n);
+    let discriminant:f32=1.0-( (ni_over_nt*ni_over_nt)*( 1.0-(dt*dt) ) );
+    if discriminant>0.0 {
+
+        let v1=VecMul3D(n,dt);
+        let mut v2=VecSub3D(&unit_vector,&v1);
+        v2=VecMul3D(&v2,ni_over_nt);
+
+        let val=discriminant.sqrt();
+        let v3=VecMul3D(n,val);
+        let refracted_=VecSub3D(&v2,&v3);
+
+        *refracted=refracted_.clone();
+
+        return true;
+    }
+
+    false
+}
 

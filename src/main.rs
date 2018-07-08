@@ -4,6 +4,7 @@ extern crate rand;
 use std::io::prelude::*;
 use std::fs::File;
 use rand::{thread_rng,Rng};
+use std::time::{Duration, Instant};
 
 
 
@@ -18,16 +19,12 @@ fn main() {
     type Metal=math3d::Metal;
     type HitRecord=math3d::HitRecord;
 
-    println!("Ray Tracing !");
-
-
+    println!("Start Ray Tracing !");
+    
     
     let v1=v3f{x:1.0,y:1.0,z:1.0};
     let mut v2=v3f{x:0.0,y:0.0,z:0.0};
     
-
-
-
 
     let mut buffer=File::create("image.ppm").unwrap();
 
@@ -68,6 +65,7 @@ fn main() {
                     radius:0.5,
                     material:Box::new(Metal{
                         albedo:v3f{x:0.8,y:0.6,z:0.2}
+                        ,fuzz:0.3
                     })
             });
 
@@ -76,6 +74,7 @@ fn main() {
                     radius:0.5,
                     material:Box::new(Metal{
                         albedo:v3f{x:0.8,y:0.8,z:0.8}
+                        ,fuzz:1.0
                     })
             });
 
@@ -88,7 +87,10 @@ fn main() {
     world.objects.push(s4);
 
     let camera=Camera::new();
-    
+   
+
+    let now = Instant::now();
+
     let mut j:i32=ny-1;
     
         while j>=0 {
@@ -125,4 +127,8 @@ fn main() {
             }
             j-=1;
         }
+
+
+    println!("secs:{}", now.elapsed().as_secs());
+
 }

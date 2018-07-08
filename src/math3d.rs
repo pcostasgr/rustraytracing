@@ -108,6 +108,8 @@ pub fn VecMulVec3D(v1:&Vec3D<f32>,v2:&Vec3D<f32>)->Vec3D<f32>{
 }
 
 pub fn VecDiv3D(v:&v3f,f:f32)->v3f{
+
+    //this sucks I'll use an epsilon next time I promise
     if f!=0.0 {
         
         Vec3D{x:v.x/f,y:v.y/f,z:v.z/f}
@@ -389,12 +391,15 @@ impl  Material for Lambertian{
 
 pub struct Metal{
     pub albedo:v3f,
+    pub fuzz:f32,
 }
 
 impl Metal{
-    pub fn new(a:v3f)->Self{
+    pub fn new(a:v3f,f:f32)->Self{
+        let fuzz_=if f<1.0 { f } else { 1.0 };
         Metal{
-            albedo:a
+            albedo:a,
+            fuzz:fuzz_
         }
     }
 }
@@ -404,9 +409,12 @@ impl  Material for Metal{
            let unit_vector=VecNorm3D(&r_in.direction);
 
             let reflected=Reflect(&unit_vector,&rec.normal);
-            
+            let random_point=RandomInUnitSphere();
+            let fuzz_random_point=VecMul3D(&random_point,self.fuzz);
+            let fuzz_reflected=VecAdd3D(&reflected,&fuzz_random_point);
+
             scattered.origin=rec.p.clone();
-            scattered.direction=reflected.clone();
+            scattered.direction=fuzz_reflected.clone();
 
             attenuation.x=self.albedo.x;
             attenuation.y=self.albedo.y;

@@ -15,15 +15,14 @@ fn main() {
     type Sphere=math3d::Sphere;
     type World= math3d::World;
     type Camera=math3d::Camera;
+    type CameraOld=math3d::CameraOld;
     type Lambertian=math3d::Lambertian;
     type Metal=math3d::Metal;
+    type Dialectric=math3d::Dielectric;
     type HitRecord=math3d::HitRecord;
 
-    println!("Start Ray Tracing !");
+    println!("Start Ray Tracing !!!");
     
-    
-    let v1=v3f{x:1.0,y:1.0,z:1.0};
-    let mut v2=v3f{x:0.0,y:0.0,z:0.0};
     
 
     let mut buffer=File::create("image.ppm").unwrap();
@@ -40,7 +39,6 @@ fn main() {
     let horizontal:v3f=v3f{x:4.0,y:0.0,z:0.0};
     let vertical:v3f=v3f{x:0.0,y:2.0,z:0.0};
     let origin:v3f=v3f{x:0.0,y:0.0,z:0.0};
-
 
 
 
@@ -69,15 +67,21 @@ fn main() {
                     })
             });
 
-    let s4=Box::new(Sphere{
+   /* let s4=Box::new(Sphere{
                     center:v3f{x:-1.0,y:0.0,z:-1.0},
-                    radius:0.5,
+                    radius:0.45,
                     material:Box::new(Metal{
                         albedo:v3f{x:0.8,y:0.8,z:0.8}
                         ,fuzz:1.0
                     })
             });
+*/
 
+   let s4=Box::new(Sphere{
+                    center:v3f{x:-1.0,y:0.0,z:-1.0},
+                    radius:0.45,
+                    material:Box::new(Dialectric{ref_idx:1.5})
+            });
 
 
     let mut world=World::new();
@@ -86,8 +90,19 @@ fn main() {
     world.objects.push(s3);
     world.objects.push(s4);
 
-    let camera=Camera::new();
-   
+    let aspect:f32= (nx as f32)/(ny as f32);
+    let look_from=v3f{x:-2.0,y:2.0,z:1.0};
+    let look_at=v3f{x:0.0,y:0.0,z:-1.0};
+    let vup=v3f{x:0.0,y:1.0,z:0.0};
+    let vfov=90.0;
+    /*let camera=Camera::new(
+        look_from,
+        look_at,
+        vup,
+        vfov,aspect
+    );*/
+    
+    let camera=CameraOld::new();
 
     let now = Instant::now();
 

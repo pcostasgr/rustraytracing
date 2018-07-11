@@ -1,7 +1,7 @@
 extern crate rand;
 use rand::{thread_rng,Rng};
 use std::{ptr,fmt};
-
+use std::f32;
 const MAX_FLOAT:f32=9999999999999999999999999.0;
 
 
@@ -42,6 +42,14 @@ pub trait Hitable{
 }
 
 impl Vec3D<f32>{
+    pub fn new()->Self{
+        v3f{
+            x:0.0,
+            y:0.0,
+            z:0.0            
+        }
+    }
+
     pub fn Length(&self)-> f32{
         let mut value:f32=self.x*self.x+self.y*self.y+self.z*self.z;
         value.sqrt()
@@ -301,6 +309,46 @@ impl  World{
 
 }
 
+pub struct CameraOld{
+    pub lower_left_corner:v3f,
+    pub horizontal:v3f,
+    pub vertical:v3f,
+    pub origin:v3f,
+}
+
+
+
+impl CameraOld{
+    pub fn new()->Self{
+
+        CameraOld{
+
+            lower_left_corner:v3f{x:-2.0,y:-1.0,z:-1.0},
+            horizontal:v3f{x:4.0,y:0.0,z:0.0},
+            vertical:v3f{x:0.0,y:2.0,z:0.0},
+            origin:v3f{x:0.0,y:0.0,z:0.0},
+          
+
+        }
+    }
+   
+
+    pub fn GetRay(&self,u:f32,v:f32)->Ray{
+            let mut v1=VecMul3D(&self.horizontal,u);            
+            let v2=VecMul3D(&self.vertical,v);
+            
+            v1=VecAdd3D(&self.lower_left_corner,&v1);
+            v1=VecAdd3D(&v1,&v2);
+
+            let r:Ray=Ray{
+                origin:self.origin,
+                direction:v1
+            };
+            
+            r
+    }
+}
+
 
 pub struct Camera{
     pub lower_left_corner:v3f,
@@ -310,12 +358,39 @@ pub struct Camera{
 }
 
 impl Camera{
-    pub fn new()->Self{
+
+   
+      pub fn new(look_from:v3f,look_at:v3f,vup:v3f, vfov:f32,aspect:f32)->Self{
+
+            let pi:f32=f32::consts::PI;
+            let theta=vfov*pi/180.0;
+            let half_height=(theta/2.0).tan();
+            let half_width=aspect*half_height;
+
+            let diff_vec=VecSub3D(&look_from,&look_at);
+            let w=VecNorm3D(&diff_vec);
+            let cross_vec=VecCross3D(&vup,&w);
+            let u=VecNorm3D(&cross_vec);
+            let v=VecCross3D(&w,&u);
+            
+            let mut lower_left_corner_=look_from.clone();
+            let hwu=VecMul3D(&u,half_width);
+            let hhv=VecMul3D(&v,half_height);
+            
+            lower_left_corner_=VecSub3D(&lower_left_corner_,&hwu);
+            lower_left_corner_=VecSub3D(&lower_left_corner_,&hhv);            
+            lower_left_corner_=VecSub3D(&lower_left_corner_,&w);            
+            
+            let  horizontal_=VecMul3D(&hwu,2.0);
+            let  vertical_=VecMul3D(&hhv,2.0);            
+
         Camera{
-            lower_left_corner:v3f{x:-2.0,y:-1.0,z:-1.0},
-            horizontal:v3f{x:4.0,y:0.0,z:0.0},
-            vertical:v3f{x:0.0,y:2.0,z:0.0},
-            origin:v3f{x:0.0,y:0.0,z:0.0},
+
+            lower_left_corner:lower_left_corner_,
+            horizontal:horizontal_,
+            vertical:vertical_,
+            origin:look_from,
+          
 
         }
     }
@@ -326,7 +401,7 @@ impl Camera{
             
             v1=VecAdd3D(&self.lower_left_corner,&v1);
             v1=VecAdd3D(&v1,&v2);
-
+            v1=VecSub3D(&v1,&self.origin);
             let r:Ray=Ray{
                 origin:self.origin,
                 direction:v1
@@ -437,24 +512,118 @@ pub fn Reflect(v:&v3f,n:&v3f)->v3f{
 
 pub fn Refract(v:&v3f,n:&v3f,ni_over_nt:f32,refracted:& mut v3f)-> bool{
 
-    let unit_vector=VecNorm3D(v);
-    let dt=VecDot3D(&unit_vector,n);
-    let discriminant:f32=1.0-( (ni_over_nt*ni_over_nt)*( 1.0-(dt*dt) ) );
+    let uv=VecNorm3D(v);
+
+    let dt=VecDot3D(&uv,n);
+
+    let ni_squared=ni_over_nt*ni_over_nt;
+    let dt_squared=dt*dt;
+    let one_minus_dts=1.0-dt_squared;
+
+    let discriminant:f32=1.0-( ni_squared*one_minus_dts );
+    
+
     if discriminant>0.0 {
 
-        let v1=VecMul3D(n,dt);
-        let mut v2=VecSub3D(&unit_vector,&v1);
+        let ndt=VecMul3D(n,dt);
+        let mut v2=VecSub3D(&uv,&ndt);
+
         v2=VecMul3D(&v2,ni_over_nt);
 
         let val=discriminant.sqrt();
+
         let v3=VecMul3D(n,val);
         let refracted_=VecSub3D(&v2,&v3);
+        
 
-        *refracted=refracted_.clone();
+        refracted.x=refracted_.x;
+        refracted.y=refracted_.y;
+        refracted.z=refracted_.z;        
 
         return true;
     }
 
     false
 }
+
+pub fn Schlick(cosine:f32,ref_idx:f32)->f32{
+    let mut r0=(1.0-ref_idx)/(1.0+ref_idx);
+    r0=r0*r0;
+    return r0+ ( (1.0-r0)*( (1.0-cosine).powf(5.0) ) );
+}
+
+
+pub struct Dielectric{
+    pub ref_idx:f32,
+}
+
+impl Dielectric{
+    pub fn new(ri:f32)->Self{
+        Dielectric{
+            ref_idx:ri,
+        }
+    }
+}
+
+impl  Material for Dielectric{
+       fn Scatter(&self,r_in:&Ray,rec:&HitRecord,attenuation:&mut v3f,scattered:&mut Ray)->bool{
+
+            let mut outward_normal=v3f::new();
+            let reflected=Reflect(&r_in.direction,&rec.normal);
+
+            let mut ni_over_nt:f32=0.0;
+            
+            attenuation.x=1.0;
+            attenuation.y=1.0;
+            attenuation.z=1.0;
+
+            let mut refracted=v3f::new();
+            let mut cosine:f32=0.0;
+            let mut reflect_prob:f32=0.0;
+
+            let dot_=VecDot3D(&r_in.direction,&rec.normal);
+            let dir_len=r_in.direction.Length();
+
+            if dot_>0.0{
+                outward_normal.x=-rec.normal.x;
+                outward_normal.y=-rec.normal.y;
+                outward_normal.z=-rec.normal.z;                                
+                ni_over_nt=self.ref_idx;
+                cosine=dot_/dir_len;
+                cosine=1.0-( (self.ref_idx*self.ref_idx)*(1.0-(cosine*cosine) ) );
+                cosine=cosine.sqrt();
+
+            }else{
+                outward_normal.x=rec.normal.x;
+                outward_normal.y=rec.normal.y;
+                outward_normal.z=rec.normal.z;                                
+        
+                ni_over_nt=1.0/self.ref_idx;
+                cosine=-dot_/dir_len;
+            }
+
+
+            let refract_=Refract(&r_in.direction,&outward_normal,ni_over_nt,& mut refracted);
+            
+            if refract_{
+                reflect_prob=Schlick(cosine,self.ref_idx);
+            }else{
+                reflect_prob=1.0;
+            }
+
+           let rand=thread_rng().gen_range(0.0,1.0);
+            
+
+            if rand<reflect_prob {
+                scattered.origin=rec.p.clone();
+                scattered.direction=reflected.clone();
+            //    println!("refracted1 {:?}",refracted)
+            }else{
+                scattered.origin=rec.p.clone();
+                scattered.direction=refracted.clone();
+            } 
+            true
+        }
+}
+
 

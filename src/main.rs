@@ -7,6 +7,10 @@ use rand::{thread_rng,Rng};
 use std::time::{Duration, Instant};
 
 
+pub fn CreateRandomScene(world:& mut math3d::World){
+    let n=500;
+    
+}
 
 fn main() {
     type v3f=math3d::Vec3D<f32>;
@@ -27,9 +31,9 @@ fn main() {
 
     let mut buffer=File::create("image.ppm").unwrap();
 
-    let nx:i32=200;
-    let ny:i32=100;
-    let ns:i32=100;
+    let nx:i32=1200;
+    let ny:i32=800;
+    let ns:i32=10;
 
     writeln!(buffer,"P3");
     writeln!(buffer,"{} {}",nx,ny);
@@ -67,42 +71,46 @@ fn main() {
                     })
             });
 
-   /* let s4=Box::new(Sphere{
-                    center:v3f{x:-1.0,y:0.0,z:-1.0},
-                    radius:0.45,
-                    material:Box::new(Metal{
-                        albedo:v3f{x:0.8,y:0.8,z:0.8}
-                        ,fuzz:1.0
-                    })
-            });
-*/
 
    let s4=Box::new(Sphere{
                     center:v3f{x:-1.0,y:0.0,z:-1.0},
-                    radius:0.45,
+                    radius:0.5,
                     material:Box::new(Dialectric{ref_idx:1.5})
             });
 
+    let s5=Box::new(Sphere{
+                    center:v3f{x:-2.0,y:0.0,z:-1.0},
+                    radius:-0.45,
+                    material:Box::new(Dialectric{ref_idx:1.5})
+            });
 
     let mut world=World::new();
     world.objects.push(s1);
     world.objects.push(s2);
     world.objects.push(s3);
     world.objects.push(s4);
+    world.objects.push(s5);
 
     let aspect:f32= (nx as f32)/(ny as f32);
-    let look_from=v3f{x:-2.0,y:2.0,z:1.0};
-    let look_at=v3f{x:0.0,y:0.0,z:-1.0};
+    let look_from=v3f{x:13.0,y:2.0,z:3.0};
+    let look_at=v3f{x:0.0,y:0.0,z:0.0};
     let vup=v3f{x:0.0,y:1.0,z:0.0};
-    let vfov=90.0;
-    /*let camera=Camera::new(
+    let vfov=20.0;
+
+    let aperture=0.1;
+    let v00=math3d::VecSub3D(&look_from,&look_at);
+    let dist_to_focus=10.0;
+
+    let camera=Camera::new(
         look_from,
         look_at,
         vup,
         vfov,aspect
-    );*/
+        ,aperture
+        ,dist_to_focus
+    );
     
-    let camera=CameraOld::new();
+    //let camera=CameraOld::new();
 
     let now = Instant::now();
 

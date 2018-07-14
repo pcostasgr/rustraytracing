@@ -350,17 +350,48 @@ impl CameraOld{
 }
 
 
+
+pub fn RandomInUnitDisk()->v3f {
+
+    let mut do_loop=true;
+    let mut p=v3f::new();
+
+    while do_loop {
+        let rand=thread_rng().gen_range(0.0,1.0); 
+        let v00=v3f{x:rand,y:rand,z:0.0};
+        let v01=v3f{x:1.0,y:1.0,z:0.0};
+        let v02=VecSub3D(&v00,&v01);
+        p=VecMul3D(&v02,2.0);
+
+        let dot=VecDot3D(&p,&p);
+
+        if dot<1.0 {
+            do_loop=false;
+        }
+
+    }
+
+    return p;
+
+}
+
 pub struct Camera{
     pub lower_left_corner:v3f,
     pub horizontal:v3f,
     pub vertical:v3f,
     pub origin:v3f,
+    pub u:v3f,
+    pub v:v3f,
+    pub w:v3f ,
+    lens_radius:f32
 }
 
 impl Camera{
 
    
-      pub fn new(look_from:v3f,look_at:v3f,vup:v3f, vfov:f32,aspect:f32)->Self{
+      pub fn new(look_from:v3f,look_at:v3f,vup:v3f, vfov:f32,aspect:f32,aperture:f32,focus_dist:f32)->Self{
+            
+            let lens_radius_=aperture/2.0;
 
             let pi:f32=f32::consts::PI;
             let theta=vfov*pi/180.0;
@@ -368,21 +399,26 @@ impl Camera{
             let half_width=aspect*half_height;
 
             let diff_vec=VecSub3D(&look_from,&look_at);
-            let w=VecNorm3D(&diff_vec);
-            let cross_vec=VecCross3D(&vup,&w);
-            let u=VecNorm3D(&cross_vec);
-            let v=VecCross3D(&w,&u);
+            let w_=VecNorm3D(&diff_vec);
+            let cross_vec=VecCross3D(&vup,&w_);
+            let u_=VecNorm3D(&cross_vec);
+            let v_=VecCross3D(&w_,&u_);
             
             let mut lower_left_corner_=look_from.clone();
-            let hwu=VecMul3D(&u,half_width);
-            let hhv=VecMul3D(&v,half_height);
+            let hwu=VecMul3D(&u_,half_width);
+            let hwuf=VecMul3D(&hwu,focus_dist);
+
+            let hhv=VecMul3D(&v_,half_height);
+            let hhvf=VecMul3D(&hhv,focus_dist);
             
-            lower_left_corner_=VecSub3D(&lower_left_corner_,&hwu);
-            lower_left_corner_=VecSub3D(&lower_left_corner_,&hhv);            
-            lower_left_corner_=VecSub3D(&lower_left_corner_,&w);            
-            
-            let  horizontal_=VecMul3D(&hwu,2.0);
-            let  vertical_=VecMul3D(&hhv,2.0);            
+            let wf=VecMul3D(&w_,focus_dist);
+
+            lower_left_corner_=VecSub3D(&lower_left_corner_,&hwuf);
+            lower_left_corner_=VecSub3D(&lower_left_corner_,&hhvf);            
+            lower_left_corner_=VecSub3D(&lower_left_corner_,&wf);            
+
+            let  horizontal_=VecMul3D(&hwuf,2.0);
+            let  vertical_=VecMul3D(&hhvf,2.0);            
 
         Camera{
 
@@ -390,12 +426,14 @@ impl Camera{
             horizontal:horizontal_,
             vertical:vertical_,
             origin:look_from,
-          
-
+            u:u_,
+            v:v_,
+            w:w_,
+            lens_radius:lens_radius_
         }
     }
 
-    pub fn GetRay(&self,u:f32,v:f32)->Ray{
+    pub fn GetRayOld(&self,u:f32,v:f32)->Ray{
             let mut v1=VecMul3D(&self.horizontal,u);            
             let v2=VecMul3D(&self.vertical,v);
             
@@ -409,6 +447,34 @@ impl Camera{
             
             r
     }
+
+    pub fn GetRay(&self,u:f32,v:f32)->Ray{
+
+            let rd_=RandomInUnitDisk();
+            let rd=VecMul3D(&rd_,self.lens_radius);
+
+            let ux=VecMul3D(&self.u,rd.x);
+            let vy=VecMul3D(&self.v,rd.y);
+            let offset=VecAdd3D(&ux,&vy);
+
+
+            let mut v1=VecMul3D(&self.horizontal,u);            
+            let v2=VecMul3D(&self.vertical,v);
+            
+            v1=VecAdd3D(&self.lower_left_corner,&v1);
+            v1=VecAdd3D(&v1,&v2);
+            v1=VecSub3D(&v1,&self.origin);
+            v1=VecSub3D(&v1,&offset);
+            
+            let offset_origin=VecAdd3D(&self.origin,&offset);
+            let r:Ray=Ray{
+                origin:offset_origin,
+                direction:v1
+            };
+            
+            r
+    }
+
 }
 
 pub fn RandomInUnitSphere()->v3f{
